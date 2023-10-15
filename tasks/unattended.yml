@@ -1,0 +1,83 @@
+---
+
+# https://www.heise.de/ratgeber/Linux-Automatische-Paket-Updates-fuer-Debian-Ubuntu-Raspi-OS-Co-einspielen-6190584.html
+# https://linuxiac.com/how-to-set-up-automatic-updates-on-debian/
+
+- name: install unattended package
+  apt:
+    name:
+      - unattended-upgrades
+      - apt-utils
+      - python3-gi
+      - powermgmt-base
+    state: latest
+  check_mode: false
+
+
+# edit values
+- name: "enable {{ unattended_config }} updates"
+  ansible.builtin.replace:
+    path: "{{ apt_conf_dir }}/{{ unattended_config }}"
+    regexp: '^\/\/      "origin=Debian,codename=\${distro_codename}-updates";$'
+    replace: '        "origin=Debian,codename=${distro_codename}-updates";'
+
+
+- name: "enable {{ unattended_config }} proposed-updates"
+  ansible.builtin.replace:
+    path: "{{ apt_conf_dir }}/{{ unattended_config }}"
+    regexp: '^//      "origin=Debian,codename=\${distro_codename}-proposed-updates";'
+    replace: '        "origin=Debian,codename=${distro_codename}-proposed-updates";'
+
+
+- name: "enable {{ unattended_config }} reboot"
+  ansible.builtin.replace:
+    path: "{{ apt_conf_dir }}/{{ unattended_config }}"
+    regexp: '^//Unattended-Upgrade::Automatic-Reboot "false";'
+    replace: 'Unattended-Upgrade::Automatic-Reboot "true";'
+
+
+- name: "enable {{ unattended_config }} reboot time"
+  ansible.builtin.replace:
+    path: "{{ apt_conf_dir }}/{{ unattended_config }}"
+    regexp: '^//Unattended-Upgrade::Automatic-Reboot-Time "02:00";'
+    replace: 'Unattended-Upgrade::Automatic-Reboot-Time "02:00";'
+
+
+- name: "enable {{ unattended_config }} verbose logging"
+  ansible.builtin.replace:
+    path: "{{ apt_conf_dir }}/{{ unattended_config }}"
+    regexp: '^// Unattended-Upgrade::Verbose "false";'
+    replace: 'Unattended-Upgrade::Verbose "true";'
+
+
+- name: "enable {{ unattended_config }} add docker"
+  ansible.builtin.lineinfile:
+    path: "{{ apt_conf_dir }}/{{ unattended_config }}"
+    insertafter: '^//      "o=Debian Backports,a=\${distro_codename}-backports,l=Debian Backports";'
+    line: '        "o=Docker,a=${distro_codename},l=Docker CE,c=stable";'
+
+
+# start service
+- name: Start apt-daily.service
+  ansible.builtin.systemd:
+    name: apt-daily.service
+    enabled: true
+    masked: no
+    state: started
+
+- name: Start apt-daily.timer
+  ansible.builtin.systemd:
+    name: apt-daily.timer
+    enabled: true
+    masked: no
+    state: started
+
+
+- name: Start apt-daily-upgrade.timer
+  ansible.builtin.systemd:
+    name: apt-daily-upgrade.timer
+    enabled: true
+    masked: no
+    state: started
+
+#
